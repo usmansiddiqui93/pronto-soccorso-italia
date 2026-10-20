@@ -26,6 +26,31 @@ export async function getText(url, { timeoutMs = 20000, headers = {} } = {}) {
   }
 }
 
+// POST a form (application/x-www-form-urlencoded) and return the response text.
+export async function postForm(url, fields, { timeoutMs = 25000 } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(fields).toString(),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return await res.text();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+export function decodeEntities(s) {
+  return String(s ?? '')
+    .replace(/&#0*39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+    .replace(/&egrave;/g, 'è').replace(/&agrave;/g, 'à').replace(/&ograve;/g, 'ò').replace(/&ugrave;/g, 'ù').replace(/&igrave;/g, 'ì').replace(/&eacute;/g, 'é')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&nbsp;/g, ' ');
+}
+
 export async function getJson(url, opts) {
   return JSON.parse(await getText(url, opts));
 }
