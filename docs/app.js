@@ -148,6 +148,7 @@
     return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
       triageTable(rows, mins ? h.minutesLabel : null) +
       (h.note ? '<div class="meta">' + esc(h.note) + '</div>' : '') +
+      (h.arriving118 ? '<div class="meta">In arrivo con il 118: <b>' + h.arriving118 + '</b></div>' : '') +
       (h.untriaged ? '<div class="meta">In attesa di triage (senza codice): <b>' + h.untriaged + '</b>, inclusi nel totale in attesa</div>' : '') +
       (h.observation != null ? '<div class="meta">In osservazione (OBI): <b>' + h.observation + '</b></div>' : '') +
       (h.crowdingPct != null ? '<div class="meta">Indice di affollamento: <b>' + h.crowdingPct + '%</b></div>' : '') +
