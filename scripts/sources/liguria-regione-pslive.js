@@ -40,7 +40,7 @@ export function parse(list) {
       kind: kind || null,
       hours: x.open && x.close && !(x.open === '00:00' && x.close === '23:59') ? `${x.open}–${x.close}` : null,
       closed: !!x.nowClosed,
-      crowdingPct: a ? toNum(a.indGda) : null,
+      crowdingPct: a && toNum(a.indGda) != null ? Math.round(toNum(a.indGda)) : null,
       source: meta.label,
       sourceUrl: `https://pslive.regione.liguria.it/dettaglio/${x.codOsp}`,
       triage,
