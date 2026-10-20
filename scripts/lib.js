@@ -50,6 +50,22 @@ export function normaliseColour(c) {
   return null;
 }
 
+// Convert an Italian local date/time (Europe/Rome) to an ISO string in UTC.
+// Accepts "DD/MM/YYYY HH:MM[:SS]" (also with 2-digit year).
+export function romeToIso(text) {
+  const m = String(text || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return null;
+  let [, d, mo, y, h, mi, s = '0'] = m;
+  if (y.length === 2) y = '20' + y;
+  const asUtc = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
+  // Find Rome's offset at that moment (handles summer/winter time).
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(new Date(asUtc))
+    .reduce((o, p) => ((o[p.type] = p.value), o), {});
+  const romeAsUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return new Date(asUtc - (romeAsUtc - asUtc)).toISOString();
+}
+
 export function emptyTriage() {
   return Object.fromEntries(TRIAGE_KEYS.map((k) => [k, null]));
 }
