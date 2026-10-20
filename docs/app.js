@@ -128,6 +128,7 @@
     }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.waiting) + '</b></td><td><b>' + n(h.inTreatment) + '</b></td></tr>';
     return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
       triageTable(rows) +
+      (h.untriaged ? '<div class="meta">In attesa di triage (senza codice): <b>' + h.untriaged + '</b>, inclusi nel totale in attesa</div>' : '') +
       (h.observation != null ? '<div class="meta">In osservazione (OBI): <b>' + h.observation + '</b></div>' : '') +
       (h.crowdingPct != null ? '<div class="meta">Indice di affollamento: <b>' + h.crowdingPct + '%</b></div>' : '') +
       (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
