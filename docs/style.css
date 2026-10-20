@@ -136,3 +136,7 @@ body { background: var(--bg); color: var(--text); font: 15px/1.45 var(--font); d
   .coverage { max-width: 200px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Opening hours for sites that are not open 24h */
+.closed { display: inline-block; margin-top: 3px; font-size: 12px; font-weight: 600; color: var(--high); }
+.hours { margin-top: 2px; font-size: 12px; color: var(--muted); }

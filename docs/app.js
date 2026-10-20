@@ -99,31 +99,41 @@
   function triageTable(rows) {
     return '<table><thead><tr><th>Codice</th><th>In attesa</th><th>In visita</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
+  function where(h) {
+    return esc(h.city) + ' · ' + esc(h.region) + (h.kind ? ' · ' + esc(h.kind) : '');
+  }
+  function openNote(h) {
+    if (h.closed) return '<div class="closed">Chiuso ora' + (h.hours ? ' · aperto ' + esc(h.hours) : '') + '</div>';
+    if (h.hours) return '<div class="hours">Aperto ' + esc(h.hours) + '</div>';
+    return '';
+  }
   function popupHtml(h) {
     var rows = CODES.map(function (c) {
       var t = h.triage && h.triage[c.key];
       return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.waiting) + '</td><td>' + n(t && t.inTreatment) + '</td></tr>';
     }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.waiting) + '</b></td><td><b>' + n(h.inTreatment) + '</b></td></tr>';
-    return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + esc(h.city) + ' · ' + esc(h.region) + '</div>' +
+    return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
       triageTable(rows) +
+      (h.crowdingPct != null ? '<div class="meta">Indice di affollamento: <b>' + h.crowdingPct + '%</b></div>' : '') +
       (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
       '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
   }
   function cityPopupHtml(city, list) {
     var rows = list.map(function (h) {
-      return '<tr><td>' + esc(h.name) + '</td><td>' + n(h.waiting) + '</td><td>' + n(h.inTreatment) + '</td></tr>';
+      return '<tr><td>' + esc(h.name) + (h.closed ? ' <i>(chiuso)</i>' : '') + '</td><td>' + n(h.waiting) + '</td><td>' + n(h.inTreatment) + '</td></tr>';
     }).join('');
     return '<div class="pop"><h3>' + esc(city) + '</h3><div class="meta">' + list.length + ' pronto soccorso · ingrandisci per i dettagli</div>' +
       '<table><thead><tr><th>Ospedale</th><th>In attesa</th><th>In visita</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   function itemHtml(h) {
-    var lv = level(h.waiting);
+    var lv = h.closed ? 'na' : level(h.waiting);
+    var badge = h.closed ? 'chiuso' : (h.waiting == null ? 'n.d.' : h.waiting + ' in attesa');
     var codes = CODES.map(function (c) {
       var t = h.triage && h.triage[c.key];
       return '<div class="code" style="--c:' + c.css + '" title="' + c.label + ': in attesa / in visita"><b>' + n(t && t.waiting) + '</b><span>' + n(t && t.inTreatment) + '</span></div>';
     }).join('');
-    return '<div class="item-head"><div><h3>' + esc(h.name) + '</h3><div class="where">' + esc(h.city) + ' · ' + esc(h.region) + '</div></div>' +
-      '<span class="badge ' + lv + '" title="Pazienti in attesa">' + (h.waiting == null ? 'n.d.' : h.waiting + ' in attesa') + '</span></div>' +
+    return '<div class="item-head"><div><h3>' + esc(h.name) + '</h3><div class="where">' + where(h) + '</div>' + openNote(h) + '</div>' +
+      '<span class="badge ' + lv + '" title="Pazienti in attesa">' + badge + '</span></div>' +
       '<div class="codes">' + codes + '</div>' +
       '<div class="codes-key"><span>in attesa / in visita per codice: rosso → bianco</span></div>' +
       (h.stale ? '<div class="stale">Dati non aggiornati: fonte non raggiungibile</div>' : '');
@@ -135,13 +145,16 @@
       if (state.region && h.region !== state.region) return false;
       if (q && (h.name + ' ' + h.city).toLowerCase().indexOf(q) === -1) return false;
       return true;
-    }).sort(function (a, b) { return (b.waiting == null ? -1 : b.waiting) - (a.waiting == null ? -1 : a.waiting); });
+    }).sort(function (a, b) {
+      if (!!a.closed !== !!b.closed) return a.closed ? 1 : -1; // closed sites last
+      return (b.waiting == null ? -1 : b.waiting) - (a.waiting == null ? -1 : a.waiting);
+    });
   }
 
   // ---------- Markers ----------
-  function circle(latlng, waiting, stale, label) {
-    var r = waiting == null ? 7 : Math.min(24, 8 + Math.sqrt(waiting) * 2.2);
-    var m = L.circleMarker(latlng, { radius: r, color: '#ffffff', weight: 2, fillColor: LEVEL_HEX[level(waiting)], fillOpacity: stale ? 0.45 : 0.92 });
+  function circle(latlng, waiting, stale, label, closed) {
+    var r = closed || waiting == null ? 7 : Math.min(24, 8 + Math.sqrt(waiting) * 2.2);
+    var m = L.circleMarker(latlng, { radius: r, color: '#ffffff', weight: 2, fillColor: LEVEL_HEX[closed ? 'na' : level(waiting)], fillOpacity: stale || closed ? 0.45 : 0.92 });
     if (label != null) m.bindTooltip(String(label), { permanent: true, direction: 'center', className: 'region-label', opacity: 1 });
     return m;
   }
@@ -150,7 +163,7 @@
     state.markers = {};
     if (map.getZoom() >= CITY_ZOOM) {
       rows.forEach(function (h) {
-        var m = circle([h.lat, h.lon], h.waiting, h.stale).bindPopup(popupHtml(h));
+        var m = circle([h.lat, h.lon], h.waiting, h.stale, null, h.closed).bindPopup(popupHtml(h));
         state.markers[h.id] = m;
         m.addTo(state.markerLayer);
       });
@@ -164,7 +177,7 @@
       list.forEach(function (h) { lat += h.lat; lon += h.lon; if (h.waiting != null) w = (w || 0) + h.waiting; stale = stale || h.stale; });
       var ll = [lat / list.length, lon / list.length];
       var m;
-      if (list.length === 1) m = circle(ll, w, stale).bindPopup(popupHtml(list[0]));
+      if (list.length === 1) m = circle(ll, w, stale, null, list[0].closed).bindPopup(popupHtml(list[0]));
       else {
         m = circle(ll, w, stale).bindPopup(cityPopupHtml(city, list));
         m.on('dblclick', function () { map.setView(ll, CITY_ZOOM + 1); });
