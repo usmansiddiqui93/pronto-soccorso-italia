@@ -110,12 +110,14 @@
   function presentOnly(h) { return h.waiting == null && h.present != null; }
   function popupHtml(h) {
     if (presentOnly(h)) {
+      var hasMin = h.minutesLabel && CODES.some(function (c) { var t = h.triage && h.triage[c.key]; return t && t.minutes != null; });
       var prow = CODES.map(function (c) {
         var t = h.triage && h.triage[c.key];
-        return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.present) + '</td></tr>';
-      }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.present) + '</b></td></tr>';
+        return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.present) + '</td>' +
+          (hasMin ? '<td>' + n(t && t.minutes) + '</td>' : '') + '</tr>';
+      }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.present) + '</b></td>' + (hasMin ? '<td></td>' : '') + '</tr>';
       return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
-        '<table><thead><tr><th>Codice</th><th>Presenti in PS</th></tr></thead><tbody>' + prow + '</tbody></table>' +
+        '<table><thead><tr><th>Codice</th><th>Presenti in PS</th>' + (hasMin ? '<th>' + esc(h.minutesLabel) + '</th>' : '') + '</tr></thead><tbody>' + prow + '</tbody></table>' +
         '<div class="meta">Questa fonte non distingue i pazienti in attesa da quelli in visita.</div>' +
         (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
         '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
