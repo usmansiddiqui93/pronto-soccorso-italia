@@ -1,0 +1,12 @@
+{
+  "name": "pronto-soccorso-italia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live map of emergency room (pronto soccorso) crowding across Italy, built from public regional and hospital data.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "update": "node scripts/update.js",
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -1,0 +1,260 @@
+(function () {
+  'use strict';
+
+  // Inline data (used by the single-file preview) or files next to the page (GitHub Pages).
+  var INLINE = window.PSI_INLINE || null;
+  var SHOW_TILES = !window.PSI_NO_TILES;
+
+  var CODES = [
+    { key: 'rosso', label: 'Rosso', hex: '#d62828', css: 'var(--t-rosso)' },
+    { key: 'arancione', label: 'Arancione', hex: '#f07c00', css: 'var(--t-arancione)' },
+    { key: 'azzurro', label: 'Azzurro', hex: '#2b8fd6', css: 'var(--t-azzurro)' },
+    { key: 'verde', label: 'Verde', hex: '#2e9e4f', css: 'var(--t-verde)' },
+    { key: 'bianco', label: 'Bianco', hex: '#b9c2cc', css: 'var(--t-bianco)' },
+  ];
+  var LEVEL_HEX = { low: '#1f9d6b', mid: '#e3a008', high: '#d1343e', na: '#94a3b3' };
+  var CITY_ZOOM = 11; // below this zoom, hospitals in the same city are shown as one marker
+
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  var map = L.map('map', { zoomSnap: 0.25, minZoom: 5, maxZoom: 17, zoomControl: true, attributionControl: true })
+    .setView([42.2, 12.5], 5.75);
+  map.setMaxBounds([[33.5, 2.5], [48.5, 22.5]]);
+  map.attributionControl.setPrefix(false);
+
+  var tiles = null;
+  if (SHOW_TILES) {
+    tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, opacity: 0.85,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    });
+  }
+
+  var state = { hospitals: [], regionsGeo: null, regionLayer: null, markerLayer: L.layerGroup().addTo(map), markers: {}, q: '', region: '', liveRegions: {} };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function level(w) {
+    if (w == null) return 'na';
+    if (w >= 25) return 'high';
+    if (w >= 10) return 'mid';
+    return 'low';
+  }
+  function n(v) { return v == null ? '–' : v; }
+  function timeAgo(iso) {
+    if (!iso) return 'n.d.';
+    var mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return 'adesso';
+    if (mins < 60) return mins + ' min fa';
+    var h = Math.floor(mins / 60);
+    if (h < 24) return h + ' h fa';
+    return new Date(iso).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+  }
+  function regionName(feature) { return String(feature.properties.reg_name).split('/')[0]; }
+
+  // ---------- Regions (the base map) ----------
+  function regionStyle(feature) {
+    var live = !!state.liveRegions[regionName(feature)];
+    var selected = state.region && state.region === regionName(feature);
+    return {
+      color: selected ? cssVar('--accent') : cssVar('--border'),
+      weight: selected ? 2 : 1,
+      fillColor: live ? cssVar('--land-live') : cssVar('--land'),
+      fillOpacity: tiles && map.getZoom() >= 9 ? 0.15 : 1,
+    };
+  }
+  function drawRegions() {
+    if (!state.regionsGeo) return;
+    if (state.regionLayer) map.removeLayer(state.regionLayer);
+    state.regionLayer = L.geoJSON(state.regionsGeo, {
+      style: regionStyle,
+      onEachFeature: function (f, layer) {
+        var name = regionName(f);
+        layer.bindTooltip(name, { permanent: true, direction: 'center', className: 'region-label', interactive: false });
+        layer.on('click', function () {
+          var sel = document.getElementById('region');
+          var live = state.liveRegions[name];
+          state.region = live ? name : '';
+          sel.value = state.region;
+          map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+          if (!live) layer.bindPopup('<div class="pop"><h3>' + esc(name) + '</h3><div class="meta">Dati in tempo reale non ancora disponibili su questa mappa.</div></div>').openPopup();
+          render();
+        });
+      },
+    }).addTo(map);
+    state.regionLayer.bringToBack();
+    updateLabels();
+  }
+  function updateLabels() {
+    if (!state.regionLayer) return;
+    var show = map.getZoom() >= 6 && map.getZoom() < 9;
+    state.regionLayer.eachLayer(function (l) { var t = l.getTooltip(); if (t) t.setOpacity(show ? 1 : 0); });
+  }
+
+  // ---------- Popups / list ----------
+  function triageTable(rows) {
+    return '<table><thead><tr><th>Codice</th><th>In attesa</th><th>In visita</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  function popupHtml(h) {
+    var rows = CODES.map(function (c) {
+      var t = h.triage && h.triage[c.key];
+      return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.waiting) + '</td><td>' + n(t && t.inTreatment) + '</td></tr>';
+    }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.waiting) + '</b></td><td><b>' + n(h.inTreatment) + '</b></td></tr>';
+    return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + esc(h.city) + ' · ' + esc(h.region) + '</div>' +
+      triageTable(rows) +
+      (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
+      '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
+  }
+  function cityPopupHtml(city, list) {
+    var rows = list.map(function (h) {
+      return '<tr><td>' + esc(h.name) + '</td><td>' + n(h.waiting) + '</td><td>' + n(h.inTreatment) + '</td></tr>';
+    }).join('');
+    return '<div class="pop"><h3>' + esc(city) + '</h3><div class="meta">' + list.length + ' pronto soccorso · ingrandisci per i dettagli</div>' +
+      '<table><thead><tr><th>Ospedale</th><th>In attesa</th><th>In visita</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  function itemHtml(h) {
+    var lv = level(h.waiting);
+    var codes = CODES.map(function (c) {
+      var t = h.triage && h.triage[c.key];
+      return '<div class="code" style="--c:' + c.css + '" title="' + c.label + ': in attesa / in visita"><b>' + n(t && t.waiting) + '</b><span>' + n(t && t.inTreatment) + '</span></div>';
+    }).join('');
+    return '<div class="item-head"><div><h3>' + esc(h.name) + '</h3><div class="where">' + esc(h.city) + ' · ' + esc(h.region) + '</div></div>' +
+      '<span class="badge ' + lv + '" title="Pazienti in attesa">' + (h.waiting == null ? 'n.d.' : h.waiting + ' in attesa') + '</span></div>' +
+      '<div class="codes">' + codes + '</div>' +
+      '<div class="codes-key"><span>in attesa / in visita per codice: rosso → bianco</span></div>' +
+      (h.stale ? '<div class="stale">Dati non aggiornati: fonte non raggiungibile</div>' : '');
+  }
+
+  function visible() {
+    var q = state.q.toLowerCase();
+    return state.hospitals.filter(function (h) {
+      if (state.region && h.region !== state.region) return false;
+      if (q && (h.name + ' ' + h.city).toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    }).sort(function (a, b) { return (b.waiting == null ? -1 : b.waiting) - (a.waiting == null ? -1 : a.waiting); });
+  }
+
+  // ---------- Markers ----------
+  function circle(latlng, waiting, stale, label) {
+    var r = waiting == null ? 7 : Math.min(24, 8 + Math.sqrt(waiting) * 2.2);
+    var m = L.circleMarker(latlng, { radius: r, color: '#ffffff', weight: 2, fillColor: LEVEL_HEX[level(waiting)], fillOpacity: stale ? 0.45 : 0.92 });
+    if (label != null) m.bindTooltip(String(label), { permanent: true, direction: 'center', className: 'region-label', opacity: 1 });
+    return m;
+  }
+  function drawMarkers(rows) {
+    state.markerLayer.clearLayers();
+    state.markers = {};
+    if (map.getZoom() >= CITY_ZOOM) {
+      rows.forEach(function (h) {
+        var m = circle([h.lat, h.lon], h.waiting, h.stale).bindPopup(popupHtml(h));
+        state.markers[h.id] = m;
+        m.addTo(state.markerLayer);
+      });
+      return;
+    }
+    var cities = {};
+    rows.forEach(function (h) { (cities[h.city] = cities[h.city] || []).push(h); });
+    Object.keys(cities).forEach(function (city) {
+      var list = cities[city];
+      var lat = 0, lon = 0, w = null, stale = false;
+      list.forEach(function (h) { lat += h.lat; lon += h.lon; if (h.waiting != null) w = (w || 0) + h.waiting; stale = stale || h.stale; });
+      var ll = [lat / list.length, lon / list.length];
+      var m;
+      if (list.length === 1) m = circle(ll, w, stale).bindPopup(popupHtml(list[0]));
+      else {
+        m = circle(ll, w, stale).bindPopup(cityPopupHtml(city, list));
+        m.on('dblclick', function () { map.setView(ll, CITY_ZOOM + 1); });
+      }
+      list.forEach(function (h) { state.markers[h.id] = m; });
+      m.addTo(state.markerLayer);
+    });
+  }
+
+  function render() {
+    var rows = visible();
+    var list = document.getElementById('list');
+    list.innerHTML = '';
+    if (!rows.length) list.innerHTML = '<li class="item empty">Nessun pronto soccorso trovato.</li>';
+    rows.forEach(function (h) {
+      var li = document.createElement('li');
+      li.className = 'item';
+      li.tabIndex = 0;
+      li.innerHTML = itemHtml(h);
+      var go = function () {
+        map.setView([h.lat, h.lon], Math.max(map.getZoom(), 14));
+        setTimeout(function () { if (state.markers[h.id]) state.markers[h.id].openPopup(); }, 250);
+      };
+      li.addEventListener('click', go);
+      li.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+      list.appendChild(li);
+    });
+    drawMarkers(rows);
+    if (state.regionLayer) state.regionLayer.setStyle(regionStyle);
+  }
+
+  function renderCoverage(data) {
+    var live = Object.keys(state.liveRegions).sort();
+    document.getElementById('coverage').innerHTML =
+      '<b>' + live.length + ' di 20 regioni</b> con dati in tempo reale' +
+      '<br><span class="sw-live"></span>' + (live.join(', ') || 'nessuna') +
+      '<br><span class="sw-none"></span>altre regioni: in arrivo';
+  }
+
+  function applyData(data) {
+    state.hospitals = (data.hospitals || []).filter(function (h) { return h.lat && h.lon; });
+    state.liveRegions = {};
+    state.hospitals.forEach(function (h) { state.liveRegions[h.region] = true; });
+
+    var sel = document.getElementById('region');
+    var regions = Object.keys(state.liveRegions).sort();
+    sel.innerHTML = '<option value="">Tutte le regioni</option>' + regions.map(function (r) {
+      return '<option' + (r === state.region ? ' selected' : '') + '>' + esc(r) + '</option>';
+    }).join('');
+
+    document.getElementById('updated').textContent = state.hospitals.length + ' pronto soccorso · dati di ' + timeAgo(data.generatedAt);
+    document.getElementById('sources').innerHTML = 'Fonti: ' + (data.sources || []).map(function (s) {
+      return esc(s.label) + (s.ok ? '' : ' (non raggiungibile)');
+    }).join(' · ');
+    renderCoverage(data);
+    render();
+  }
+
+  function loadJson(url) { return fetch(url + '?t=' + Date.now()).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+
+  function loadData() {
+    var p = INLINE ? Promise.resolve(INLINE.data) : loadJson('data/latest.json');
+    return p.then(applyData).catch(function () {
+      document.getElementById('updated').textContent = 'Impossibile caricare i dati. Riprova tra qualche minuto.';
+    });
+  }
+
+  map.on('zoomend', function () {
+    if (tiles) {
+      var z = map.getZoom();
+      if (z >= 9 && !map.hasLayer(tiles)) tiles.addTo(map);
+      if (z < 9 && map.hasLayer(tiles)) map.removeLayer(tiles);
+      if (state.regionLayer) state.regionLayer.setStyle(regionStyle);
+    }
+    updateLabels();
+    drawMarkers(visible());
+  });
+
+  document.getElementById('q').addEventListener('input', function (e) { state.q = e.target.value; render(); });
+  document.getElementById('region').addEventListener('change', function (e) {
+    state.region = e.target.value;
+    render();
+    if (state.region && state.regionLayer) {
+      state.regionLayer.eachLayer(function (l) { if (regionName(l.feature) === state.region) map.fitBounds(l.getBounds(), { padding: [20, 20] }); });
+    } else map.setView([42.2, 12.5], 5.75);
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (state.regionLayer) state.regionLayer.setStyle(regionStyle); });
+
+  var geo = INLINE ? Promise.resolve(INLINE.regions) : loadJson('data/italia-regioni.geojson');
+  geo.then(function (g) { state.regionsGeo = g; drawRegions(); })
+    .catch(function () { /* map still works without region shapes */ })
+    .then(loadData);
+  setInterval(loadData, 5 * 60 * 1000);
+})();

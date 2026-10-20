@@ -1,0 +1,168 @@
+{
+ "generatedAt": "2026-10-20T22:21:32.923Z",
+ "hospitals": [
+  {
+   "id": "to-cds-01090101",
+   "name": "Ospedale Molinette",
+   "city": "Torino",
+   "region": "Piemonte",
+   "lat": 45.0395,
+   "lon": 7.6744,
+   "source": "AOU Città della Salute e della Scienza di Torino",
+   "sourceUrl": "https://listeps.cittadellasalute.to.it/?id=01090101",
+   "triage": {
+    "rosso": {
+     "waiting": 1,
+     "inTreatment": 3
+    },
+    "arancione": {
+     "waiting": 0,
+     "inTreatment": 15
+    },
+    "azzurro": {
+     "waiting": 2,
+     "inTreatment": 27
+    },
+    "verde": {
+     "waiting": 9,
+     "inTreatment": 10
+    },
+    "bianco": {
+     "waiting": 0,
+     "inTreatment": 0
+    }
+   },
+   "waiting": 12,
+   "inTreatment": 55,
+   "updatedAt": null,
+   "sourceId": "piemonte-torino-cittadellasalute",
+   "fetchedAt": "2026-10-20T22:21:32.923Z",
+   "stale": false
+  },
+  {
+   "id": "to-cds-01090201",
+   "name": "CTO",
+   "city": "Torino",
+   "region": "Piemonte",
+   "lat": 45.0334,
+   "lon": 7.6745,
+   "source": "AOU Città della Salute e della Scienza di Torino",
+   "sourceUrl": "https://listeps.cittadellasalute.to.it/?id=01090201",
+   "triage": {
+    "rosso": {
+     "waiting": 0,
+     "inTreatment": 0
+    },
+    "arancione": {
+     "waiting": 0,
+     "inTreatment": 0
+    },
+    "azzurro": {
+     "waiting": 0,
+     "inTreatment": 1
+    },
+    "verde": {
+     "waiting": 0,
+     "inTreatment": 2
+    },
+    "bianco": {
+     "waiting": 0,
+     "inTreatment": 0
+    }
+   },
+   "waiting": 0,
+   "inTreatment": 3,
+   "updatedAt": null,
+   "sourceId": "piemonte-torino-cittadellasalute",
+   "fetchedAt": "2026-10-20T22:21:32.923Z",
+   "stale": false
+  },
+  {
+   "id": "to-cds-01090301",
+   "name": "Ospedale Sant'Anna (ostetrico-ginecologico)",
+   "city": "Torino",
+   "region": "Piemonte",
+   "lat": 45.0361,
+   "lon": 7.674,
+   "source": "AOU Città della Salute e della Scienza di Torino",
+   "sourceUrl": "https://listeps.cittadellasalute.to.it/?id=01090301",
+   "triage": {
+    "rosso": {
+     "waiting": 0,
+     "inTreatment": 0
+    },
+    "arancione": {
+     "waiting": 0,
+     "inTreatment": 0
+    },
+    "azzurro": {
+     "waiting": 1,
+     "inTreatment": 1
+    },
+    "verde": {
+     "waiting": 0,
+     "inTreatment": 0
+    },
+    "bianco": {
+     "waiting": 0,
+     "inTreatment": 0
+    }
+   },
+   "waiting": 1,
+   "inTreatment": 1,
+   "updatedAt": null,
+   "sourceId": "piemonte-torino-cittadellasalute",
+   "fetchedAt": "2026-10-20T22:21:32.923Z",
+   "stale": false
+  },
+  {
+   "id": "to-cds-01090302",
+   "name": "Ospedale Infantile Regina Margherita (pediatrico)",
+   "city": "Torino",
+   "region": "Piemonte",
+   "lat": 45.0347,
+   "lon": 7.6749,
+   "source": "AOU Città della Salute e della Scienza di Torino",
+   "sourceUrl": "https://listeps.cittadellasalute.to.it/?id=01090302",
+   "triage": {
+    "rosso": {
+     "waiting": 0,
+     "inTreatment": 0
+    },
+    "arancione": {
+     "waiting": 0,
+     "inTreatment": 7
+    },
+    "azzurro": {
+     "waiting": 2,
+     "inTreatment": 8
+    },
+    "verde": {
+     "waiting": 1,
+     "inTreatment": 0
+    },
+    "bianco": {
+     "waiting": 0,
+     "inTreatment": 0
+    }
+   },
+   "waiting": 3,
+   "inTreatment": 15,
+   "updatedAt": null,
+   "sourceId": "piemonte-torino-cittadellasalute",
+   "fetchedAt": "2026-10-20T22:21:32.923Z",
+   "stale": false
+  }
+ ],
+ "sources": [
+  {
+   "id": "piemonte-torino-cittadellasalute",
+   "region": "Piemonte",
+   "label": "AOU Città della Salute e della Scienza di Torino",
+   "ok": true,
+   "count": 4,
+   "lastSuccess": "2026-10-20T22:21:32.923Z",
+   "error": null
+  }
+ ]
+}

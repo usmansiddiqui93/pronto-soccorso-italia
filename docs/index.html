@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pronto Soccorso Italia</title>
+<meta name="description" content="Mappa dei pronto soccorso italiani con i pazienti in attesa e in visita per codice di triage, da fonti pubbliche regionali e ospedaliere.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--APP-->
+<header class="top">
+  <div class="brand">
+    <span class="cross" aria-hidden="true"></span>
+    <div>
+      <h1>Pronto Soccorso Italia</h1>
+      <p class="sub" id="updated">Caricamento dati…</p>
+    </div>
+  </div>
+  <p class="emergency">Emergenza? Chiama il <strong>112</strong></p>
+</header>
+
+<main class="layout">
+  <section class="mapwrap" aria-label="Mappa dei pronto soccorso">
+    <div id="map"></div>
+    <div class="coverage" id="coverage"></div>
+  </section>
+
+  <aside class="panel" aria-label="Elenco pronto soccorso">
+    <div class="controls">
+      <input id="q" type="search" placeholder="Cerca ospedale o città" aria-label="Cerca ospedale o città">
+      <select id="region" aria-label="Filtra per regione"><option value="">Tutte le regioni</option></select>
+    </div>
+    <div class="legend" aria-label="Legenda">
+      <span class="lg-title">Pazienti in attesa</span>
+      <span><i class="dot low"></i>0–9</span>
+      <span><i class="dot mid"></i>10–24</span>
+      <span><i class="dot high"></i>25+</span>
+      <span><i class="dot na"></i>n.d.</span>
+    </div>
+    <ol id="list" class="list"></ol>
+    <footer class="note">
+      <p><strong>Non usare questa pagina per decidere in un'emergenza.</strong> In caso di pericolo di vita chiama il 112 (o il 118 dove attivo). I dati sono pubblicati dalle singole aziende sanitarie, possono essere in ritardo o incompleti e non misurano la qualità delle cure.</p>
+      <p id="sources"></p>
+      <p>Confini regionali: ISTAT via openpolis (CC BY 4.0).</p>
+    </footer>
+  </aside>
+</main>
+<!--/APP-->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
