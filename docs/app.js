@@ -108,8 +108,13 @@
   }
 
   // ---------- Popups / list ----------
-  function triageTable(rows) {
-    return '<table><thead><tr><th>Codice</th><th>In attesa</th><th>In visita</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  function triageTable(rows, minLabel) {
+    return '<table><thead><tr><th>Codice</th><th>In attesa</th><th>In visita</th>' + (minLabel ? '<th>' + esc(minLabel) + '</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  function fmtMin(m) {
+    if (m == null) return '–';
+    if (m < 60) return m + "'";
+    return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + "'";
   }
   function where(h) {
     return esc(h.city) + ' · ' + esc(h.region) + (h.kind ? ' · ' + esc(h.kind) : '');
@@ -126,7 +131,7 @@
       var prow = CODES.map(function (c) {
         var t = h.triage && h.triage[c.key];
         return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.present) + '</td>' +
-          (hasMin ? '<td>' + n(t && t.minutes) + '</td>' : '') + '</tr>';
+          (hasMin ? '<td>' + fmtMin(t ? t.minutes : null) + '</td>' : '') + '</tr>';
       }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.present) + '</b></td>' + (hasMin ? '<td></td>' : '') + '</tr>';
       return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
         '<table><thead><tr><th>Codice</th><th>Presenti in PS</th>' + (hasMin ? '<th>' + esc(h.minutesLabel) + '</th>' : '') + '</tr></thead><tbody>' + prow + '</tbody></table>' +
@@ -134,12 +139,15 @@
         (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
         '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
     }
+    var mins = h.minutesLabel && CODES.some(function (c) { var t = h.triage && h.triage[c.key]; return t && t.minutes != null; });
     var rows = CODES.map(function (c) {
       var t = h.triage && h.triage[c.key];
-      return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.waiting) + '</td><td>' + n(t && t.inTreatment) + '</td></tr>';
-    }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.waiting) + '</b></td><td><b>' + n(h.inTreatment) + '</b></td></tr>';
+      return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.waiting) + '</td><td>' + n(t && t.inTreatment) + '</td>' +
+        (mins ? '<td>' + (t && t.minutes ? fmtMin(t.minutes) : '–') + '</td>' : '') + '</tr>';
+    }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.waiting) + '</b></td><td><b>' + n(h.inTreatment) + '</b></td>' + (mins ? '<td></td>' : '') + '</tr>';
     return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
-      triageTable(rows) +
+      triageTable(rows, mins ? h.minutesLabel : null) +
+      (h.note ? '<div class="meta">' + esc(h.note) + '</div>' : '') +
       (h.untriaged ? '<div class="meta">In attesa di triage (senza codice): <b>' + h.untriaged + '</b>, inclusi nel totale in attesa</div>' : '') +
       (h.observation != null ? '<div class="meta">In osservazione (OBI): <b>' + h.observation + '</b></div>' : '') +
       (h.crowdingPct != null ? '<div class="meta">Indice di affollamento: <b>' + h.crowdingPct + '%</b></div>' : '') +
