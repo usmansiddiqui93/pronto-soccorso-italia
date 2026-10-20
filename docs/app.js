@@ -107,7 +107,19 @@
     if (h.hours) return '<div class="hours">Aperto ' + esc(h.hours) + '</div>';
     return '';
   }
+  function presentOnly(h) { return h.waiting == null && h.present != null; }
   function popupHtml(h) {
+    if (presentOnly(h)) {
+      var prow = CODES.map(function (c) {
+        var t = h.triage && h.triage[c.key];
+        return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.present) + '</td></tr>';
+      }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.present) + '</b></td></tr>';
+      return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
+        '<table><thead><tr><th>Codice</th><th>Presenti in PS</th></tr></thead><tbody>' + prow + '</tbody></table>' +
+        '<div class="meta">Questa fonte non distingue i pazienti in attesa da quelli in visita.</div>' +
+        (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
+        '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
+    }
     var rows = CODES.map(function (c) {
       var t = h.triage && h.triage[c.key];
       return '<tr><td><span class="sw" style="background:' + c.hex + '"></span>' + c.label + '</td><td>' + n(t && t.waiting) + '</td><td>' + n(t && t.inTreatment) + '</td></tr>';
@@ -121,6 +133,7 @@
   }
   function cityPopupHtml(city, list) {
     var rows = list.map(function (h) {
+      if (presentOnly(h)) return '<tr><td>' + esc(h.name) + '</td><td colspan="2">' + h.present + ' presenti*</td></tr>';
       return '<tr><td>' + esc(h.name) + (h.closed ? ' <i>(chiuso)</i>' : '') + '</td><td>' + n(h.waiting) + '</td><td>' + n(h.inTreatment) + '</td></tr>';
     }).join('');
     return '<div class="pop"><h3>' + esc(city) + '</h3><div class="meta">' + list.length + ' pronto soccorso · ingrandisci per i dettagli</div>' +
@@ -128,15 +141,17 @@
   }
   function itemHtml(h) {
     var lv = h.closed ? 'na' : level(h.waiting);
-    var badge = h.closed ? 'chiuso' : (h.waiting == null ? 'n.d.' : h.waiting + ' in attesa');
+    var po = presentOnly(h);
+    var badge = h.closed ? 'chiuso' : po ? h.present + ' in PS' : (h.waiting == null ? 'n.d.' : h.waiting + ' in attesa');
     var codes = CODES.map(function (c) {
       var t = h.triage && h.triage[c.key];
+      if (po) return '<div class="code" style="--c:' + c.css + '" title="' + c.label + ': presenti in PS"><b>' + n(t && t.present) + '</b><span>&nbsp;</span></div>';
       return '<div class="code" style="--c:' + c.css + '" title="' + c.label + ': in attesa / in visita"><b>' + n(t && t.waiting) + '</b><span>' + n(t && t.inTreatment) + '</span></div>';
     }).join('');
     return '<div class="item-head"><div><h3>' + esc(h.name) + '</h3><div class="where">' + where(h) + '</div>' + openNote(h) + '</div>' +
-      '<span class="badge ' + lv + '" title="Pazienti in attesa">' + badge + '</span></div>' +
+      '<span class="badge ' + lv + '" title="' + (po ? 'Pazienti presenti in pronto soccorso' : 'Pazienti in attesa') + '">' + badge + '</span></div>' +
       '<div class="codes">' + codes + '</div>' +
-      '<div class="codes-key"><span>in attesa / in visita per codice: rosso → bianco</span></div>' +
+      '<div class="codes-key"><span>' + (po ? 'presenti per codice (attesa e visita non distinti)' : 'in attesa / in visita per codice: rosso → bianco') + '</span></div>' +
       (h.stale ? '<div class="stale">Dati non aggiornati: fonte non raggiungibile</div>' : '');
   }
 
