@@ -2,7 +2,7 @@
 
 A map of Italy showing live emergency room (pronto soccorso) crowding — patients waiting and being seen, by triage code — built from data that regions and hospitals already publish.
 
-**Coverage so far:** Torino (AOU Città della Salute: Molinette, CTO, Sant'Anna, Regina Margherita) · Firenze, Prato, Pistoia, Empoli (Azienda USL Toscana Centro: 9 hospitals; Careggi and Meyer not included). · Liguria (Regione Liguria PS Live: all 18 sites, incl. Genova, Savona, La Spezia, Imperia). More cities are added one source at a time.
+**Coverage so far:** Torino (AOU Città della Salute: Molinette, CTO, Sant'Anna, Regina Margherita) · Firenze, Prato, Pistoia, Empoli (Azienda USL Toscana Centro: 9 hospitals; Careggi and Meyer not included). · Liguria (Regione Liguria PS Live: all 18 sites, incl. Genova, Savona, La Spezia, Imperia). · Trentino (APSS open data, CC BY 4.0: 11 units in Trento, Rovereto, Arco, Cles, Tione, Borgo Valsugana, Cavalese). More cities are added one source at a time.
 
 ## How it works
 

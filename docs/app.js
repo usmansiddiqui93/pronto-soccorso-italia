@@ -114,6 +114,7 @@
     }).join('') + '<tr><td><b>Totale</b></td><td><b>' + n(h.waiting) + '</b></td><td><b>' + n(h.inTreatment) + '</b></td></tr>';
     return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
       triageTable(rows) +
+      (h.observation != null ? '<div class="meta">In osservazione (OBI): <b>' + h.observation + '</b></div>' : '') +
       (h.crowdingPct != null ? '<div class="meta">Indice di affollamento: <b>' + h.crowdingPct + '%</b></div>' : '') +
       (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
       '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
@@ -162,8 +163,18 @@
     state.markerLayer.clearLayers();
     state.markers = {};
     if (map.getZoom() >= CITY_ZOOM) {
+      // Units in the same building (e.g. general + paediatric ER) share coordinates: fan them out slightly.
+      var same = {};
+      rows.forEach(function (h) { var k = h.lat.toFixed(4) + ',' + h.lon.toFixed(4); (same[k] = same[k] || []).push(h.id); });
       rows.forEach(function (h) {
-        var m = circle([h.lat, h.lon], h.waiting, h.stale, null, h.closed).bindPopup(popupHtml(h));
+        var group = same[h.lat.toFixed(4) + ',' + h.lon.toFixed(4)];
+        var ll = [h.lat, h.lon];
+        if (group.length > 1) {
+          var i = group.indexOf(h.id), ang = (2 * Math.PI * i) / group.length;
+          var meters = 45 * Math.pow(2, 15 - Math.min(map.getZoom(), 17)) / 2 + 20;
+          ll = [h.lat + (meters / 111320) * Math.sin(ang), h.lon + (meters / (111320 * Math.cos(h.lat * Math.PI / 180))) * Math.cos(ang)];
+        }
+        var m = circle(ll, h.waiting, h.stale, null, h.closed).bindPopup(popupHtml(h));
         state.markers[h.id] = m;
         m.addTo(state.markerLayer);
       });
