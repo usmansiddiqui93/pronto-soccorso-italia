@@ -17,8 +17,9 @@
 
   function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
+  var HOME = { center: [42.2, 12.5], zoom: 5.75 };
   var map = L.map('map', { zoomSnap: 0.25, minZoom: 5, maxZoom: 17, zoomControl: true, attributionControl: true })
-    .setView([42.2, 12.5], 5.75);
+    .setView(HOME.center, HOME.zoom);
   map.setMaxBounds([[33.5, 2.5], [48.5, 22.5]]);
   map.attributionControl.setPrefix(false);
 
@@ -183,7 +184,13 @@
       li.className = 'item';
       li.tabIndex = 0;
       li.innerHTML = itemHtml(h);
+      if (h.id === state.activeId) li.classList.add('active');
       var go = function () {
+        state.activeId = h.id;
+        Array.prototype.forEach.call(list.children, function (c) { c.classList.remove('active'); });
+        li.classList.add('active');
+        // On phones the map sits above the list: bring it into view.
+        if (window.matchMedia('(max-width: 820px)').matches) document.querySelector('.mapwrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
         map.setView([h.lat, h.lon], Math.max(map.getZoom(), 14));
         setTimeout(function () { if (state.markers[h.id]) state.markers[h.id].openPopup(); }, 250);
       };
@@ -193,7 +200,26 @@
     });
     drawMarkers(rows);
     if (state.regionLayer) state.regionLayer.setStyle(regionStyle);
+    updateBack();
   }
+
+  // "Back to the Italy map": shown whenever the view is zoomed in or filtered.
+  var backBtn = document.getElementById('back');
+  function updateBack() {
+    backBtn.hidden = !(map.getZoom() > HOME.zoom + 0.5 || state.region || state.q);
+  }
+  function goHome() {
+    state.region = '';
+    state.q = '';
+    state.activeId = null;
+    document.getElementById('region').value = '';
+    document.getElementById('q').value = '';
+    map.closePopup();
+    map.setView(HOME.center, HOME.zoom);
+    render();
+  }
+  backBtn.addEventListener('click', goHome);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !backBtn.hidden) goHome(); });
 
   function renderCoverage(data) {
     var live = Object.keys(state.liveRegions).sort();
@@ -240,6 +266,7 @@
     }
     updateLabels();
     drawMarkers(visible());
+    updateBack();
   });
 
   document.getElementById('q').addEventListener('input', function (e) { state.q = e.target.value; render(); });
@@ -248,7 +275,7 @@
     render();
     if (state.region && state.regionLayer) {
       state.regionLayer.eachLayer(function (l) { if (regionName(l.feature) === state.region) map.fitBounds(l.getBounds(), { padding: [20, 20] }); });
-    } else map.setView([42.2, 12.5], 5.75);
+    } else map.setView(HOME.center, HOME.zoom);
   });
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (state.regionLayer) state.regionLayer.setStyle(regionStyle); });
 
