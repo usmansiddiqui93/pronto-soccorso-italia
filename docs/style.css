@@ -140,3 +140,11 @@ body { background: var(--bg); color: var(--text); font: 15px/1.45 var(--font); d
 /* Opening hours for sites that are not open 24h */
 .closed { display: inline-block; margin-top: 3px; font-size: 12px; font-weight: 600; color: var(--high); }
 .hours { margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+/* Second legend row: ring markers for sources that only publish patients present */
+.legend-2 { padding-top: 0; }
+.legend:has(+ .legend-2) { border-bottom: 0; }
+.ring { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; border: 3px solid; box-sizing: border-box; }
+.ring.low { border-color: var(--low); background: color-mix(in srgb, var(--low) 30%, transparent); }
+.ring.mid { border-color: var(--mid); background: color-mix(in srgb, var(--mid) 30%, transparent); }
+.ring.high { border-color: var(--high); background: color-mix(in srgb, var(--high) 30%, transparent); }

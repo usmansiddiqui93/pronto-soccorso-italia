@@ -38,6 +38,18 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  // Sources that only publish patients present (waiting + being seen) use a higher scale.
+  function levelPresent(p) {
+    if (p == null) return 'na';
+    if (p >= 35) return 'high';
+    if (p >= 15) return 'mid';
+    return 'low';
+  }
+  function hLevel(h) {
+    if (h.closed) return 'na';
+    if (h.waiting != null) return level(h.waiting);
+    return levelPresent(h.present);
+  }
   function level(w) {
     if (w == null) return 'na';
     if (w >= 25) return 'high';
@@ -143,7 +155,7 @@
       '<table><thead><tr><th>Ospedale</th><th>In attesa</th><th>In visita</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   function itemHtml(h) {
-    var lv = h.closed ? 'na' : level(h.waiting);
+    var lv = hLevel(h);
     var po = presentOnly(h);
     var badge = h.closed ? 'chiuso' : po ? h.present + ' in PS' : (h.waiting == null ? 'n.d.' : h.waiting + ' in attesa');
     var codes = CODES.map(function (c) {
@@ -171,9 +183,16 @@
   }
 
   // ---------- Markers ----------
-  function circle(latlng, waiting, stale, label, closed) {
-    var r = closed || waiting == null ? 7 : Math.min(24, 8 + Math.sqrt(waiting) * 2.2);
-    var m = L.circleMarker(latlng, { radius: r, color: '#ffffff', weight: 2, fillColor: LEVEL_HEX[closed ? 'na' : level(waiting)], fillOpacity: stale || closed ? 0.45 : 0.92 });
+  function circle(latlng, waiting, stale, label, closed, present) {
+    var m;
+    if (!closed && waiting == null && present != null) {
+      // "Patients present" sources: a coloured ring, sized on the present count.
+      var col = LEVEL_HEX[levelPresent(present)];
+      m = L.circleMarker(latlng, { radius: Math.min(22, 7 + Math.sqrt(present) * 1.6), color: col, weight: 4, fillColor: col, fillOpacity: stale ? 0.15 : 0.3 });
+    } else {
+      var r = closed || waiting == null ? 7 : Math.min(24, 8 + Math.sqrt(waiting) * 2.2);
+      m = L.circleMarker(latlng, { radius: r, color: '#ffffff', weight: 2, fillColor: LEVEL_HEX[closed ? 'na' : level(waiting)], fillOpacity: stale || closed ? 0.45 : 0.92 });
+    }
     if (label != null) m.bindTooltip(String(label), { permanent: true, direction: 'center', className: 'region-label', opacity: 1 });
     return m;
   }
@@ -192,7 +211,7 @@
           var meters = 45 * Math.pow(2, 15 - Math.min(map.getZoom(), 17)) / 2 + 20;
           ll = [h.lat + (meters / 111320) * Math.sin(ang), h.lon + (meters / (111320 * Math.cos(h.lat * Math.PI / 180))) * Math.cos(ang)];
         }
-        var m = circle(ll, h.waiting, h.stale, null, h.closed).bindPopup(popupHtml(h));
+        var m = circle(ll, h.waiting, h.stale, null, h.closed, h.present).bindPopup(popupHtml(h));
         state.markers[h.id] = m;
         m.addTo(state.markerLayer);
       });
@@ -206,9 +225,11 @@
       list.forEach(function (h) { lat += h.lat; lon += h.lon; if (h.waiting != null) w = (w || 0) + h.waiting; stale = stale || h.stale; });
       var ll = [lat / list.length, lon / list.length];
       var m;
-      if (list.length === 1) m = circle(ll, w, stale, null, list[0].closed).bindPopup(popupHtml(list[0]));
+      var pres = null;
+      if (w == null) list.forEach(function (h) { if (h.present != null) pres = (pres || 0) + h.present; });
+      if (list.length === 1) m = circle(ll, w, stale, null, list[0].closed, list[0].present).bindPopup(popupHtml(list[0]));
       else {
-        m = circle(ll, w, stale).bindPopup(cityPopupHtml(city, list));
+        m = circle(ll, w, stale, null, false, pres).bindPopup(cityPopupHtml(city, list));
         m.on('dblclick', function () { map.setView(ll, CITY_ZOOM + 1); });
       }
       list.forEach(function (h) { state.markers[h.id] = m; });
