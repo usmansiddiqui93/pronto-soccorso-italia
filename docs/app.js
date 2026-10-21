@@ -116,6 +116,12 @@
     if (m < 60) return m + "'";
     return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + "'";
   }
+  // The source itself stopped updating (its own timestamp is old), even though we fetched it fine.
+  function oldNote(h) {
+    if (h.stale || !h.updatedAt) return '';
+    var hours = (Date.now() - new Date(h.updatedAt).getTime()) / 3600000;
+    return hours > 3 ? '<div class="stale">La fonte non aggiorna questi dati da ' + esc(timeAgo(h.updatedAt).replace(' fa', '')) + '</div>' : '';
+  }
   function where(h) {
     return esc(h.city) + ' · ' + esc(h.region) + (h.kind ? ' · ' + esc(h.kind) : '');
   }
@@ -136,7 +142,7 @@
       return '<div class="pop"><h3>' + esc(h.name) + '</h3><div class="meta">' + where(h) + '</div>' + openNote(h) +
         '<table><thead><tr><th>Codice</th><th>Presenti in PS</th>' + (hasMin ? '<th>' + esc(h.minutesLabel) + '</th>' : '') + '</tr></thead><tbody>' + prow + '</tbody></table>' +
         '<div class="meta">Questa fonte non distingue i pazienti in attesa da quelli in visita.</div>' +
-        (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
+        (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') + oldNote(h) +
         '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
     }
     var mins = h.minutesLabel && CODES.some(function (c) { var t = h.triage && h.triage[c.key]; return t && t.minutes != null; });
@@ -152,7 +158,7 @@
       (h.untriaged ? '<div class="meta">In attesa di triage (senza codice): <b>' + h.untriaged + '</b>, inclusi nel totale in attesa</div>' : '') +
       (h.observation != null ? '<div class="meta">In osservazione (OBI): <b>' + h.observation + '</b></div>' : '') +
       (h.crowdingPct != null ? '<div class="meta">Indice di affollamento: <b>' + h.crowdingPct + '%</b></div>' : '') +
-      (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') +
+      (h.stale ? '<div class="stale">Fonte non raggiungibile: dati non aggiornati.</div>' : '') + oldNote(h) +
       '<div class="meta">Aggiornato ' + esc(timeAgo(h.updatedAt || h.fetchedAt)) + ' · <a href="' + esc(h.sourceUrl) + '" target="_blank" rel="noopener">Fonte ufficiale</a></div></div>';
   }
   function cityPopupHtml(city, list) {
@@ -176,7 +182,7 @@
       '<span class="badge ' + lv + '" title="' + (po ? 'Pazienti presenti in pronto soccorso' : 'Pazienti in attesa') + '">' + badge + '</span></div>' +
       '<div class="codes">' + codes + '</div>' +
       '<div class="codes-key"><span>' + (po ? 'presenti per codice (attesa e visita non distinti)' : 'in attesa / in visita per codice: rosso → bianco') + '</span></div>' +
-      (h.stale ? '<div class="stale">Dati non aggiornati: fonte non raggiungibile</div>' : '');
+      (h.stale ? '<div class="stale">Dati non aggiornati: fonte non raggiungibile</div>' : '') + oldNote(h);
   }
 
   function visible() {
